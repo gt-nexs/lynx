@@ -1,6 +1,6 @@
 # lynx-vllm
 
-**Lynx is a workload-agnostic expert remapping technique that improves throughput by 2.0× — across reasoning and multi-modal MoE models — while maintaining accuracy.**
+**Lynx is a workload-agnostic expert remapping technique that improves throughput by up to 2.0× — across reasoning and multi-modal MoE models — while maintaining accuracy.**
 
 This package ships Lynx as a drop-in plugin for [vLLM](https://github.com/vllm-project/vllm). Install it, set one environment variable, and any supported MoE model serves faster — no fork, no kernel rebuild, no application changes.
 
