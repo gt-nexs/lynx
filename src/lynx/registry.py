@@ -11,20 +11,30 @@ from importlib import resources
 
 # Substring → bundled config path. Order matters when multiple substrings
 # could match the same model name (the first match in dict insertion order
-# is used). Keep the more specific keys first.
+# is used) — keep the more specific keys first.
+#
+# The defaults below match the canonical configs used in the benchmark
+# scripts that backed the published Lynx numbers (latency-scripts/
+# run_*_4bmk.sh / run_*_full_benchmarks.sh). Each maps a model-name
+# substring to the JSON policy that gave the headline speedup for that
+# family. To use a more conservative policy, pass
+# ``--lynx-config-file path/to/policy.json`` (or set the
+# ``VLLM_LYNX_CONFIG_FILE`` env var). To override at runtime in code,
+# call ``lynx.register_model("substring", "/path/to/policy.json")``.
 LYNX_MODEL_REGISTRY: dict[str, str] = {
-    # Qwen3 dense MoE families (128 experts × top-8). The
-    # ``quant_alpha3_beta2_optimized`` policy is the more aggressive of
-    # the two validated configs and is what produces the headline TPOT
-    # speedup; switch to ``quant_alpha1_beta1_optimized`` (β/α=1.0) via
-    # ``--lynx-config-file`` if you want the conservative variant.
-    "qwen3-235b-a22b": "qwen3_235b/quant_alpha1_beta2_optimized.json",
+    # Qwen3 dense MoE (128 experts × top-8)
+    "qwen3-235b-a22b": "qwen3_235b/quant_alpha3_beta2_optimized.json",
     "qwen3-30b-a3b": "qwen3_30b/quant_alpha3_beta2_optimized.json",
-    # Qwen2 MoE family (64 experts × top-8)
+    # Qwen2 MoE (64 experts × top-8)
     "qwen2-57b-a14b": "qwen2/quant_alpha3_beta4_optimized.json",
-    # Mixtral families (8 experts × top-2)
+    # Mixtral 8x22B (8 experts × top-2) — uses alpha1_beta1
+    "mixtral-8x22b": "mixtral/quant_alpha1_beta1_optimized.json",
+    # Mixtral 8x7B (8 experts × top-2) — uses alpha0.7_beta1
     "mixtral-8x7b": "mixtral/quant_alpha0.7_beta1_optimized.json",
-    "mixtral-8x22b": "mixtral/quant_alpha0.7_beta1_optimized.json",
+    # DeepSeek-Coder-V2 (160 experts × top-6, grouped routing)
+    "deepseek-coder-v2": "deepseek_v2_coder/quant_alpha1_beta1_optimized.json",
+    # GPT-OSS-120B (128 experts × top-4)
+    "gpt-oss-120b": "gpt_oss_120b/quant_alpha3_beta2_optimized.json",
 }
 
 

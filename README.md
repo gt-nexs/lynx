@@ -104,12 +104,21 @@ pruning = larger TPOT speedup at potentially some quality cost.
 
 ## Bundled defaults
 
-| Model substring | Default policy |
-|---|---|
-| `qwen3-235b-a22b` | `qwen3_235b/quant_alpha1_beta2_optimized.json` |
-| `qwen3-30b-a3b` | `qwen3_30b/quant_alpha3_beta2_optimized.json` |
-| `qwen2-57b-a14b` | `qwen2/quant_alpha3_beta4_optimized.json` |
-| `mixtral-8x7b`, `mixtral-8x22b` | `mixtral/quant_alpha0.7_beta1_optimized.json` |
+| Model substring | Default policy | Source bench script |
+|---|---|---|
+| `qwen3-235b-a22b` | `qwen3_235b/quant_alpha3_beta2_optimized.json` | `run_qwen3_235b_4bmk.sh` |
+| `qwen3-30b-a3b` | `qwen3_30b/quant_alpha3_beta2_optimized.json` | `run_qwen3_30b_full_benchmarks.sh` |
+| `qwen2-57b-a14b` | `qwen2/quant_alpha3_beta4_optimized.json` | `run_qwen2_4bmk.sh` |
+| `mixtral-8x22b` | `mixtral/quant_alpha1_beta1_optimized.json` | `run_mixtral_8x22b_full_benchmarks.sh` |
+| `mixtral-8x7b` | `mixtral/quant_alpha0.7_beta1_optimized.json` | `run_mixtral_4bmk.sh` |
+| `deepseek-coder-v2` | `deepseek_v2_coder/quant_alpha1_beta1_optimized.json` | `run_deepseek_v2_full_benchmarks.sh` |
+| `gpt-oss-120b` | `gpt_oss_120b/quant_alpha3_beta2_optimized.json` | `run_gpt_oss_120b_4bmk.sh` |
+
+Each entry is taken from the canonical bench script that produced the
+published Lynx perf numbers for that model. Substring matching against
+the `--model` argument is case-insensitive; the first match in registry
+insertion order wins, so more-specific keys (e.g. `mixtral-8x22b`) are
+listed before less-specific ones (`mixtral-8x7b`).
 
 Architectures wired for lynx via the plugin: Mixtral, Qwen2-MoE,
 Qwen3-MoE, DeepSeek-V2 (grouped routing), DBRX, OLMoE, Llama4 (sigmoid
