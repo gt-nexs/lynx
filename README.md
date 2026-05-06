@@ -16,17 +16,37 @@ is a no-op — vllm's behaviour is byte-for-byte unchanged. So
 ## Install
 
 ```bash
+# 1. Install vLLM (any v0.20.x; we test against 0.20.1).
 pip install vllm==0.20.1
-pip install lynx-vllm
 
-# Optional: ablation telemetry CSVs
-pip install 'lynx-vllm[metrics]'
+# 2. Install lynx-vllm. (Until we publish to PyPI, install from GitHub.)
+pip install git+https://github.com/VimaGupta345/lynx.git@main
+
+# Optional: ablation telemetry CSVs (pulls in ddsketch).
+pip install 'git+https://github.com/VimaGupta345/lynx.git@main#egg=lynx-vllm[metrics]'
 ```
 
-No CUDA toolkit, `nvcc`, or `cmake` is needed — lynx ships a pure-Python
-wheel. The Triton kernels in `lynx.routing` are JIT-compiled on first
-launch (cached in `~/.triton/cache/` by triton itself). Install time is
-under 5 seconds.
+`lynx-vllm` ships a pure-Python wheel — no CUDA toolkit, `nvcc`, or
+`cmake` is needed. The Triton kernels in `lynx.routing` are JIT-compiled
+on first launch and cached in `~/.triton/cache/`.
+
+### vLLM install troubleshooting
+
+If `pip install vllm==0.20.1` pulls a wheel that doesn't match your CUDA
+version (you'll see `ImportError: libcudart.so.13: cannot open shared
+object file` or similar at runtime), build vLLM from source against your
+local torch:
+
+```bash
+git clone --depth 1 --branch v0.20.1 https://github.com/vllm-project/vllm.git
+cd vllm
+VLLM_USE_PRECOMPILED=1 pip install -e . --torch-backend=auto
+```
+
+`VLLM_USE_PRECOMPILED=1` tells vLLM to download the prebuilt CUDA wheel
+that matches your installed torch's CUDA version, instead of always
+pulling the latest. (See vLLM's docs for the full list of install
+options.)
 
 ## Usage
 
