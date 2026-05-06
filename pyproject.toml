@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lynx-vllm"
+version = "0.1.0"
+description = "Opt-in MoE expert-skipping plugin for vLLM"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Vima Gupta" },
+]
+requires-python = ">=3.10"
+
+# vLLM is required at runtime, but we don't pin a hard upper bound on
+# install — users who install vllm separately (e.g. from source) should
+# still be able to install lynx-vllm. The plugin's monkey-patches are
+# validated against vllm 0.20.1; later versions may need a corresponding
+# lynx release.
+dependencies = [
+    "vllm>=0.20.1",
+]
+
+[project.optional-dependencies]
+metrics = ["ddsketch>=2.0"]
+test = ["pytest>=7", "requests>=2.32"]
+
+[project.entry-points."vllm.general_plugins"]
+lynx = "lynx._plugin:install"
+
+[project.urls]
+Homepage = "https://github.com/VimaGupta345/lynx"
+Source = "https://github.com/VimaGupta345/lynx"
+"Reference (in-tree port)" = "https://github.com/VimaGupta345/lynx/tree/archive/vllm-fork-v0.20.1"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["lynx*"]
+
+[tool.setuptools.package-data]
+lynx = ["configs/**/*.json"]
