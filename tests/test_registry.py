@@ -21,10 +21,13 @@ def test_lookup_qwen3_30b_uses_aggressive_default():
     assert "alpha3_beta2_optimized" in path
 
 
-def test_lookup_qwen3_235b_uses_alpha3_beta2():
-    path = lynx.lookup("Qwen/Qwen3-235B-A22B-Thinking-2507")
-    assert path is not None
-    assert "qwen3_235b/quant_alpha3_beta2_optimized" in path
+def test_lookup_qwen3_235b_thinking_vs_instruct():
+    """Thinking variant uses alpha1_beta2; Instruct uses alpha3_beta2.
+    Substring match must pick the more-specific key first for Thinking."""
+    p_thinking = lynx.lookup("Qwen/Qwen3-235B-A22B-Thinking-2507")
+    p_instruct = lynx.lookup("Qwen/Qwen3-235B-A22B-Instruct-2507")
+    assert p_thinking is not None and "quant_alpha1_beta2_optimized" in p_thinking
+    assert p_instruct is not None and "quant_alpha3_beta2_optimized" in p_instruct
 
 
 def test_lookup_mixtral_variants_pick_correct_config():
@@ -47,6 +50,13 @@ def test_lookup_gpt_oss_120b():
     path = lynx.lookup("openai/gpt-oss-120b")
     assert path is not None
     assert "gpt_oss_120b/quant_alpha3_beta2_optimized" in path
+
+
+def test_lookup_llama4():
+    """Llama-4 maps to quant_alpha1.json (sigmoid routing, 16 experts × top-1)."""
+    path = lynx.lookup("meta-llama/Llama-4-Scout-17B-16E-Instruct")
+    assert path is not None
+    assert "llama4/quant_alpha1" in path
 
 
 def test_all_registry_paths_resolve_to_real_files():

@@ -10,3 +10,4 @@ dist/
 .ruff_cache/
 profiling_output/
 .integration-test-server.log
+*.swp

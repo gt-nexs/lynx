@@ -22,6 +22,11 @@ from importlib import resources
 # ``VLLM_LYNX_CONFIG_FILE`` env var). To override at runtime in code,
 # call ``lynx.register_model("substring", "/path/to/policy.json")``.
 LYNX_MODEL_REGISTRY: dict[str, str] = {
+    # Qwen3-235B-A22B Thinking variant (must come BEFORE the
+    # less-specific qwen3-235b-a22b key so substring match picks it up
+    # for *-Thinking-* model names; *-Instruct-* falls through to the
+    # next entry).
+    "qwen3-235b-a22b-thinking": "qwen3_235b/quant_alpha1_beta2_optimized.json",
     # Qwen3 dense MoE (128 experts × top-8)
     "qwen3-235b-a22b": "qwen3_235b/quant_alpha3_beta2_optimized.json",
     "qwen3-30b-a3b": "qwen3_30b/quant_alpha3_beta2_optimized.json",
@@ -35,6 +40,8 @@ LYNX_MODEL_REGISTRY: dict[str, str] = {
     "deepseek-coder-v2": "deepseek_v2_coder/quant_alpha1_beta1_optimized.json",
     # GPT-OSS-120B (128 experts × top-4)
     "gpt-oss-120b": "gpt_oss_120b/quant_alpha3_beta2_optimized.json",
+    # Llama 4 (16 experts × top-1, sigmoid routing)
+    "llama-4": "llama4/quant_alpha1.json",
 }
 
 
