@@ -32,23 +32,16 @@ VLLM_LYNX_CONFIG_FILE=/path/to/policy.json \
 
 ## Policy file format
 
-A policy file is a small JSON specifying the routing kernel and the model's expert topology:
+Lynx is built on **affinity binning**: a routing technique that groups experts into bins based on each token's routing affinity, then skips bins below a threshold. The binning configuration depends only on the model's architecture (the number of experts and routing top-k) — it is not workload-dependent and does not need to be retuned per request distribution.
+
+A policy file describes one such configuration:
 
 ```json
 {
     "policy": "quant_alpha3_beta4_optimized",
     "num_experts_per_tok": 8,
-    "num_local_experts": 64,
-    "alpha": 1,
-    "beta": 0,
-    "min_experts": 0,
-    "threshold_percentile": 0,
-    "count_of_topk": 0
+    "num_local_experts": 64
 }
 ```
 
-- `num_experts_per_tok` and `num_local_experts` describe the model architecture.
-- `policy` selects the routing kernel; most production policies bake α/β into their name (`quant_alpha3_beta4_optimized` ⇒ α=3, β=4 hardcoded).
-- The runtime `alpha`/`beta` fields apply to the parametric `quant` policy.
-
-Examples for each supported family ship under [`src/lynx/configs/`](../src/lynx/configs/) — copy the closest one and edit `num_experts_per_tok` / `num_local_experts` for your model.
+The two architectural fields (`num_experts_per_tok`, `num_local_experts`) must match your model. The `policy` field selects a pre-validated binning tuned for that architecture. Bundled policy examples for every supported model family live under [`src/lynx/configs/`](../src/lynx/configs/); copy the closest one, update the architectural fields, and the same policy will apply.
