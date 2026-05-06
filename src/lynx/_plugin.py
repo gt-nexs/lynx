@@ -4,11 +4,14 @@
 worker).
 """
 
-import logging
-
 from lynx._env import is_enabled
 
-logger = logging.getLogger(__name__)
+try:
+    from vllm.logger import init_logger as _init_logger
+    logger = _init_logger("lynx.plugin")
+except Exception:
+    import logging
+    logger = logging.getLogger(__name__)
 
 
 def install() -> None:
@@ -24,4 +27,4 @@ def install() -> None:
     from lynx import _patches
 
     _patches.install_all()
-    logger.info("lynx: plugin installed (env-gate ON)")
+    logger.info("lynx: plugin installed")

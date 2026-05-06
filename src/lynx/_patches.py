@@ -5,14 +5,21 @@ no-op) and gated on ``VLLM_LYNX_ENABLED`` via :mod:`lynx._env`.
 Patch summary:
 
 1. ``FusedMoE.__init__`` — inject the right Lynx routing variant.
-2. ``ModelConfig.__post_init__`` — load the policy JSON onto ``hf_config``.
-3. ``GPUModelRunner.execute_model`` — per-batch prefill detection +
+2. ``GPUModelRunner.execute_model`` — per-batch prefill detection +
    ``LynxState.on_batch_start_worker`` + force eager on prefill.
-4. ``GPUModelRunner._dummy_run`` — set ``is_prefill=False`` so cudagraph
+3. ``GPUModelRunner._dummy_run`` — set ``is_prefill=False`` so cudagraph
    capture exercises the Lynx kernel (else captured graphs bypass it).
-5. ``Worker.__init__`` — create the per-worker ``LynxState`` singleton.
-6. ``Worker.initialize_from_config`` — flip ``profile_complete=True``
+4. ``Worker.__init__`` — load the policy JSON, inject onto ``hf_config``,
+   create the per-worker ``LynxState`` singleton.
+5. ``Worker.initialize_from_config`` — flip ``profile_complete=True``
    after kernel warmup.
+
+The policy injection lives in the Worker patch (not a ModelConfig hook)
+because plugin load order is more reliable there — by the time
+``Worker.__init__`` runs, the worker has a fully-populated
+``vllm_config`` with the correct ``hf_config`` available, and we are
+guaranteed to be inside the worker process where ``LynxState`` needs to
+be created anyway.
 
 The patches are designed to fail loudly (with a logged warning) rather
 than silently when the underlying vLLM API moves. We pin ``vllm`` to
@@ -22,7 +29,6 @@ than silently when the underlying vLLM API moves. We pin ``vllm`` to
 from __future__ import annotations
 
 import json
-import logging
 import os
 from typing import Any
 
@@ -33,7 +39,12 @@ from lynx._env import (
     profile_dir,
 )
 
-logger = logging.getLogger(__name__)
+try:
+    from vllm.logger import init_logger as _init_logger
+    logger = _init_logger("lynx.patches")
+except Exception:
+    import logging
+    logger = logging.getLogger(__name__)
 
 
 _SENTINEL = "_lynx_patched"
@@ -47,11 +58,22 @@ def install_all() -> None:
     """Apply every Lynx patch, in dependency order. Idempotent."""
     if not is_enabled():
         return
-    _patch_model_config()
     _patch_fused_moe()
     _patch_gpu_worker()
     _patch_gpu_model_runner()
     logger.info("lynx: all patches installed")
+
+
+def _resolve_lynx_policy(model_name: str) -> dict | None:
+    """Load the active policy JSON. Tries ``VLLM_LYNX_CONFIG_FILE``
+    first, then the bundled registry. Returns None if nothing matches."""
+    from lynx.registry import lookup as registry_lookup
+
+    path = config_file_override() or registry_lookup(model_name)
+    if path is None:
+        return None
+    with open(path) as f:
+        return json.load(f)
 
 
 # ---------------------------------------------------------------------------
@@ -93,55 +115,7 @@ def _patch_fused_moe() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2. ModelConfig.__post_init__ — inject the policy JSON onto hf_config.
-# ---------------------------------------------------------------------------
-
-
-def _patch_model_config() -> None:
-    from vllm.config.model import ModelConfig
-
-    if _already_patched(ModelConfig.__post_init__):
-        return
-
-    _orig_post_init = ModelConfig.__post_init__
-
-    def _patched_post_init(self: Any, *args: Any, **kwargs: Any) -> None:
-        result = _orig_post_init(self, *args, **kwargs)
-        try:
-            _resolve_and_apply_lynx_config(self)
-        except Exception as e:
-            # Don't kill the engine on a Lynx config mistake — log and
-            # continue. LynxState.create_instance will fail loudly later
-            # if hf_config didn't get the required keys.
-            logger.warning("lynx: config injection failed: %s", e)
-        return result
-
-    _patched_post_init._lynx_patched = True  # type: ignore[attr-defined]
-    ModelConfig.__post_init__ = _patched_post_init  # type: ignore[method-assign]
-    logger.debug("lynx: patched ModelConfig.__post_init__")
-
-
-def _resolve_and_apply_lynx_config(model_config: Any) -> None:
-    """Resolve the policy file (explicit override, then registry lookup),
-    load it, and ``setattr`` its keys onto ``model_config.hf_config``."""
-    from lynx.registry import lookup as registry_lookup
-
-    path = config_file_override() or registry_lookup(model_config.model)
-    if path is None:
-        raise ValueError(
-            f"VLLM_LYNX_ENABLED=1 but no Lynx config registered for "
-            f"model {model_config.model!r}. Either register one with "
-            f"lynx.register_model(...) or set VLLM_LYNX_CONFIG_FILE."
-        )
-    logger.info("lynx: using policy %s for %s", path, model_config.model)
-    with open(path) as f:
-        policy_cfg = json.load(f)
-    for key, value in policy_cfg.items():
-        setattr(model_config.hf_config, key, value)
-
-
-# ---------------------------------------------------------------------------
-# 3 + 4. GPUModelRunner: per-batch hook + dummy_run is_prefill flip.
+# 2 + 3. GPUModelRunner: per-batch hook + dummy_run is_prefill flip.
 # ---------------------------------------------------------------------------
 
 
@@ -234,17 +208,42 @@ def _patch_gpu_worker() -> None:
 
     def _patched_init(self: Any, *args: Any, **kwargs: Any) -> None:
         _orig_init(self, *args, **kwargs)
-        # Best-effort lazy LynxState creation. The hf_config has already
-        # been mutated by _patch_model_config in this process.
+        # Resolve and inject the Lynx policy into hf_config, then create
+        # the per-worker LynxState. Done in the worker (not in a
+        # ModelConfig hook) because plugin load order is more reliable
+        # here: by this point self.vllm_config is fully populated.
         try:
+            mc = self.vllm_config.model_config
+            policy = _resolve_lynx_policy(mc.model)
+            if policy is None:
+                logger.warning(
+                    "lynx: no policy registered for model %r; skipping. "
+                    "Use lynx.register_model(...) or VLLM_LYNX_CONFIG_FILE.",
+                    mc.model,
+                )
+                return
+            for k, v in policy.items():
+                setattr(mc.hf_config, k, v)
+
             from lynx.state import LynxState
 
-            LynxState.create_instance(
-                self.vllm_config.model_config.hf_config,
+            state = LynxState.create_instance(
+                mc.hf_config,
                 metrics_enabled=metrics_enabled(),
             )
+            # Print to stderr (in addition to logger.info) so the
+            # initialization is visible in vllm-serve logs even when
+            # vllm's logging config silences third-party loggers.
+            import sys as _sys
+            print(
+                f"lynx: state initialized on worker (pid={os.getpid()}, "
+                f"policy={getattr(state, 'policy', None)}, "
+                f"alpha={getattr(state, 'alpha', None)}, "
+                f"beta={getattr(state, 'beta', None)})",
+                file=_sys.stderr, flush=True,
+            )
             if metrics_enabled():
-                _create_metric_store(self.vllm_config.model_config.hf_config)
+                _create_metric_store(mc.hf_config)
         except Exception as e:
             logger.warning("lynx: LynxState creation failed: %s", e)
 
@@ -259,6 +258,12 @@ def _patch_gpu_worker() -> None:
             state = LynxState.get_instance()
             if state is not None:
                 state.mark_profiling_done()
+                import sys as _sys
+                print(
+                    f"lynx: profiling complete on worker (pid={os.getpid()}); "
+                    f"expert pruning is now active",
+                    file=_sys.stderr, flush=True,
+                )
             if metrics_enabled():
                 _mark_metric_store_done()
         except Exception as e:

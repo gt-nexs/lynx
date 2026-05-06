@@ -90,11 +90,13 @@ def test_lynx_kicks_in_via_env_var():
 
         # Plugin install markers must be present.
         log = LOG_PATH.read_text()
-        assert "Lynx: state initialized" in log, (
-            "lynx plugin did not install LynxState in the worker — patches may not have fired"
+        assert "lynx: state initialized on worker" in log, (
+            "lynx plugin did not install LynxState in the worker — patches "
+            "may not have fired. Log tail:\n" + log[-2000:]
         )
-        assert "Lynx: profiling complete" in log, (
-            "post-warmup profile-complete flip did not run"
+        assert "lynx: profiling complete on worker" in log, (
+            "post-warmup profile-complete flip did not run. Log tail:\n"
+            + log[-2000:]
         )
 
         # Sanity completion.

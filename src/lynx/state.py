@@ -18,10 +18,16 @@ Key invariants:
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
-logger = logging.getLogger(__name__)
+try:
+    # Prefer vllm's logger init so INFO lines appear alongside vllm's
+    # own logs (vllm silences third-party loggers by default).
+    from vllm.logger import init_logger as _init_logger
+    logger = _init_logger("lynx.state")
+except Exception:
+    import logging
+    logger = logging.getLogger(__name__)
 
 
 class LynxState:

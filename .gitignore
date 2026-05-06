@@ -9,3 +9,4 @@ dist/
 .mypy_cache/
 .ruff_cache/
 profiling_output/
+.integration-test-server.log
