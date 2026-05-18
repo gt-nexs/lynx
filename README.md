@@ -8,7 +8,7 @@ This package ships Lynx as a drop-in plugin for [vLLM](https://github.com/vllm-p
 
 ```bash
 pip install vllm==0.20.1
-pip install git+https://github.com/VimaGupta345/lynx.git@main
+pip install git+https://github.com/gt-nexs/lynx.git@main
 ```
 
 The package distributes as a pure-Python wheel and does not require a CUDA toolkit, host compiler, or CMake build environment at install time. Triton kernels are JIT-compiled on first invocation.

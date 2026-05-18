@@ -30,9 +30,9 @@ test = ["pytest>=7", "requests>=2.32"]
 lynx = "lynx._plugin:install"
 
 [project.urls]
-Homepage = "https://github.com/VimaGupta345/lynx"
-Source = "https://github.com/VimaGupta345/lynx"
-"Reference (in-tree port)" = "https://github.com/VimaGupta345/lynx/tree/archive/vllm-fork-v0.20.1"
+Homepage = "https://github.com/gt-nexs/lynx"
+Source = "https://github.com/gt-nexs/lynx"
+"Reference (in-tree port)" = "https://github.com/gt-nexs/lynx/tree/archive/vllm-fork-v0.20.1"
 
 [tool.setuptools.packages.find]
 where = ["src"]
