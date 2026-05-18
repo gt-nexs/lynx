@@ -28,7 +28,7 @@ Lynx supports any MoE architecture built on vLLM's `FusedMoE` layer. Bundled pol
 | Variable | Description |
 |---|---|
 | `VLLM_LYNX_ENABLED=1` | Activates the plugin. |
-| `VLLM_LYNX_CONFIG_FILE=<path>` | Overrides the bundled policy for the served model. |
+| `VLLM_LYNX_CONFIG_FILE=<path>` | *(Optional)* Overrides the bundled policy for the served model. |
 
 ## License
 
